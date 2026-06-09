@@ -6,6 +6,7 @@ A very fun project to mess around with tiny transformer models, and to better un
 Training data will be strings like "100 + 9 / 3", and the label will be "103". We will generate all our training data programmatically. To keep model small, we will keep length of expression short and only float up to 2 decimals.
 
 Example:
+```json
 [
     [
         "-51.69 / -59.25 - -98.82", <-- math expression/instruction
@@ -20,6 +21,7 @@ Example:
         "-202562.07"
     ]
 ]
+```
 
 ## Building a character tokenizer
 Why a character tokenizer?
