@@ -19,7 +19,7 @@ class MultiHeadAttention(nn.Module):
         self.out_linear = nn.Linear(d_model, d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
         head_outputs = []
         
         for i in range(self.num_heads):
@@ -29,6 +29,9 @@ class MultiHeadAttention(nn.Module):
             
             scores_i = torch.matmul(q_i, k_i.transpose(-2, -1))
             scores_i = scores_i / (self.d_k ** 0.5)
+
+            if mask is not None:
+                scores_i = scores_i.masked_fill(mask == 0, -1e9)
             
             attention_weights_i = torch.softmax(scores_i, dim=-1)
             attention_weights_i = self.dropout(attention_weights_i)
@@ -89,13 +92,25 @@ class TinyArithmeticTransformer(nn.Module):
         
         self.output_linear = nn.Linear(d_model, vocab_size)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def compute_prefix_lm_mask(self, input_ids: torch.Tensor, eq_token_id: int) -> torch.Tensor:
+        batch_size, seq_len = input_ids.shape
+        device = input_ids.device
+        
+        causal_mask = torch.tril(torch.ones((seq_len, seq_len), device=device))
+        eq_indices = (input_ids == eq_token_id).int().argmax(dim=-1)
+        col_indices = torch.arange(seq_len, device=device).view(1, seq_len)
+        is_prefix_col = col_indices.unsqueeze(1) <= eq_indices.view(batch_size, 1, 1)
+        prefix_lm_mask = torch.where(is_prefix_col, torch.tensor(1.0, device=device), causal_mask.float())
+        
+        return prefix_lm_mask
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
         x = self.token_embedding_layer(x)
         x = self.positional_encoding(x)
         
         attn_residual = x
         x_norm1 = self.pre_attention_layernorm(x)
-        attn_out = self.multi_head_attention(x_norm1)
+        attn_out = self.multi_head_attention(x_norm1, mask=mask)
         x = attn_residual + attn_out
         
         ffn_residual = x
