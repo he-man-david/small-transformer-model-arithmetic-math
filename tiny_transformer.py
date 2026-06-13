@@ -94,13 +94,14 @@ class TinyArithmeticTransformer(nn.Module):
 
     def compute_prefix_lm_mask(self, input_ids: torch.Tensor, eq_token_id: int) -> torch.Tensor:
         batch_size, seq_len = input_ids.shape
-        device = input_ids.device
+        causal_mask = torch.tril(torch.ones((seq_len, seq_len), device=input_ids.device))
         
-        causal_mask = torch.tril(torch.ones((seq_len, seq_len), device=device))
         eq_indices = (input_ids == eq_token_id).int().argmax(dim=-1)
-        col_indices = torch.arange(seq_len, device=device).view(1, seq_len)
-        is_prefix_col = col_indices.unsqueeze(1) <= eq_indices.view(batch_size, 1, 1)
-        prefix_lm_mask = torch.where(is_prefix_col, torch.tensor(1.0, device=device), causal_mask.float())
+        eq_grid = eq_indices.view(batch_size, 1, 1)
+        col_grid = torch.arange(seq_len, device=input_ids.device).view(1, 1, seq_len)
+        
+        is_prefix_col = (col_grid <= eq_grid)
+        prefix_lm_mask = torch.where(is_prefix_col, 1.0, causal_mask)
         
         return prefix_lm_mask
 
