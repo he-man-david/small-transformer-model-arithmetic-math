@@ -2,50 +2,38 @@ import math
 import torch
 import torch.nn as nn
 
-# An unoptimized vanilla MHA - add the new shit in future
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
         super().__init__()
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
-
         self.d_model = d_model
         self.num_heads = num_heads
         self.d_k = d_model // num_heads
 
-        self.q_linear_heads = nn.ModuleList([nn.Linear(d_model, self.d_k) for _ in range(num_heads)])
-        self.k_linear_heads = nn.ModuleList([nn.Linear(d_model, self.d_k) for _ in range(num_heads)])
-        self.v_linear_heads = nn.ModuleList([nn.Linear(d_model, self.d_k) for _ in range(num_heads)])
-
+        self.q_linear = nn.Linear(d_model, d_model)
+        self.k_linear = nn.Linear(d_model, d_model)
+        self.v_linear = nn.Linear(d_model, d_model)
         self.out_linear = nn.Linear(d_model, d_model)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
-        head_outputs = []
+        batch_size, seq_len, _ = x.shape
+        q = self.q_linear(x).view(batch_size, seq_len, self.num_heads, self.d_k).transpose(1, 2)
+        k = self.k_linear(x).view(batch_size, seq_len, self.num_heads, self.d_k).transpose(1, 2)
+        v = self.v_linear(x).view(batch_size, seq_len, self.num_heads, self.d_k).transpose(1, 2)
         
-        for i in range(self.num_heads):
-            q_i = self.q_linear_heads[i](x)
-            k_i = self.k_linear_heads[i](x)
-            v_i = self.v_linear_heads[i](x)
+        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.d_k ** 0.5)
+        if mask is not None:
+            if mask.dim() == 3: mask = mask.unsqueeze(1)
+            elif mask.dim() == 2: mask = mask.unsqueeze(0).unsqueeze(1)
+            scores = scores.masked_fill(mask == 0, -1e9)
             
-            scores_i = torch.matmul(q_i, k_i.transpose(-2, -1))
-            scores_i = scores_i / (self.d_k ** 0.5)
-
-            if mask is not None:
-                scores_i = scores_i.masked_fill(mask == 0, -1e9)
-            
-            attention_weights_i = torch.softmax(scores_i, dim=-1)
-            attention_weights_i = self.dropout(attention_weights_i)
-            
-            out_i = torch.matmul(attention_weights_i, v_i)
-            head_outputs.append(out_i)
-            
-        concat_out = torch.cat(head_outputs, dim=-1)
-        final_output = self.out_linear(concat_out)
-        
-        return final_output
+        attention_weights = self.dropout(torch.softmax(scores, dim=-1))
+        out = torch.matmul(attention_weights, v)
+        concat_out = out.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
+        return self.out_linear(concat_out)
 
 
-# The OG positional encoding from 2017 paper - I will try RoPE in future
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_seq_len: int, dropout: float = 0.1):
         super().__init__()
