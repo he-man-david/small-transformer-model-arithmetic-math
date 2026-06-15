@@ -26,7 +26,7 @@ class MultiHeadAttention(nn.Module):
         if mask is not None:
             if mask.dim() == 3: mask = mask.unsqueeze(1)
             elif mask.dim() == 2: mask = mask.unsqueeze(0).unsqueeze(1)
-            scores = scores.masked_fill(mask == 0, -1e9)
+            scores = scores.masked_fill(mask == 0, -65504) # the -65504 is so that it fits within FP16
             
         attention_weights = self.dropout(torch.softmax(scores, dim=-1))
         out = torch.matmul(attention_weights, v)
