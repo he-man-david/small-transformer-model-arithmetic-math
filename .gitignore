@@ -21,3 +21,8 @@ Pipfile.lock
 
 # Ignore log files
 *.log
+
+# Ignore all PyTorch checkpoint files
+*.pt
+*.pth
+checkpoints/

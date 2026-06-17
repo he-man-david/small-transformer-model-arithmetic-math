@@ -56,28 +56,50 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class TinyArithmeticTransformer(nn.Module):
-    def __init__(self, vocab_size: int, d_model: int = 64, max_seq_len: int = 100, num_heads: int = 4, dropout: float = 0.1):
+class TransformerBlock(nn.Module):
+    def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
         super().__init__()
-        
-        self.d_model = d_model
-        self.max_seq_len = max_seq_len
-        self.num_heads = num_heads
-        self.token_embedding_layer = nn.Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
-        self.positional_encoding = PositionalEncoding(d_model, max_seq_len, dropout)
-        
         self.pre_attention_layernorm = nn.LayerNorm(d_model)
         self.multi_head_attention = MultiHeadAttention(d_model, num_heads, dropout)
         
         self.pre_ffn_layernorm = nn.LayerNorm(d_model)
         self.ffn = nn.Sequential(
             nn.Linear(d_model, 4 * d_model),
-            nn.ReLU(),                         
-            nn.Linear(4 * d_model, 4 * d_model),
-            nn.ReLU(),                         
+            nn.ReLU(),                                 
             nn.Linear(4 * d_model, d_model)
         )
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
+        attn_residual = x
+        x_norm1 = self.pre_attention_layernorm(x)
+        attn_out = self.multi_head_attention(x_norm1, mask=mask)
+        x = attn_residual + attn_out
         
+        ffn_residual = x
+        x_norm2 = self.pre_ffn_layernorm(x)
+        ffn_out = self.ffn(x_norm2)
+        x = ffn_residual + ffn_out
+        
+        return x
+
+
+class TinyArithmeticTransformer(nn.Module):
+    def __init__(self, vocab_size: int, d_model: int = 64, max_seq_len: int = 100, 
+                 num_heads: int = 4, num_layers: int = 6, dropout: float = 0.1):
+        super().__init__()
+        
+        self.d_model = d_model
+        self.max_seq_len = max_seq_len
+        self.num_heads = num_heads
+        
+        self.token_embedding_layer = nn.Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
+        self.positional_encoding = PositionalEncoding(d_model, max_seq_len, dropout)
+        
+        self.layers = nn.ModuleList([
+            TransformerBlock(d_model, num_heads, dropout) for _ in range(num_layers)
+        ])
+        
+        self.final_layernorm = nn.LayerNorm(d_model)
         self.output_linear = nn.Linear(d_model, vocab_size)
 
     def compute_prefix_lm_mask(self, input_ids: torch.Tensor, eq_token_id: int) -> torch.Tensor:
@@ -97,17 +119,10 @@ class TinyArithmeticTransformer(nn.Module):
         x = self.token_embedding_layer(x)
         x = self.positional_encoding(x)
         
-        attn_residual = x
-        x_norm1 = self.pre_attention_layernorm(x)
-        attn_out = self.multi_head_attention(x_norm1, mask=mask)
-        x = attn_residual + attn_out
-        
-        ffn_residual = x
-        x_norm2 = self.pre_ffn_layernorm(x)
-        ffn_out = self.ffn(x_norm2)
-        x = ffn_residual + ffn_out
-        
+        for layer in self.layers:
+            x = layer(x, mask=mask)
+            
+        x = self.final_layernorm(x)
         logits = self.output_linear(x)
         
         return logits
-
