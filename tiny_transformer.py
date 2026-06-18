@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
+    def __init__(self, d_model: int, num_heads: int):
         super().__init__()
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
         self.d_model = d_model
@@ -14,7 +14,6 @@ class MultiHeadAttention(nn.Module):
         self.k_linear = nn.Linear(d_model, d_model)
         self.v_linear = nn.Linear(d_model, d_model)
         self.out_linear = nn.Linear(d_model, d_model)
-        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None):
         batch_size, seq_len, _ = x.shape
@@ -28,17 +27,16 @@ class MultiHeadAttention(nn.Module):
             elif mask.dim() == 2: mask = mask.unsqueeze(0).unsqueeze(1)
             scores = scores.masked_fill(mask == 0, -65504) # the -65504 is so that it fits within FP16
             
-        attention_weights = self.dropout(torch.softmax(scores, dim=-1))
+        attention_weights = torch.softmax(scores, dim=-1)
         out = torch.matmul(attention_weights, v)
         concat_out = out.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
         return self.out_linear(concat_out)
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model: int, max_seq_len: int, dropout: float = 0.1):
+    def __init__(self, d_model: int, max_seq_len: int):
         super().__init__()
         
-        self.dropout = nn.Dropout(p=dropout)
         pe = torch.zeros(max_seq_len, d_model)
         position = torch.arange(0, max_seq_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
@@ -53,20 +51,21 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.pe[:, :x.size(1)]
-        return self.dropout(x)
+        return x
 
 
 class TransformerBlock(nn.Module):
     def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
         super().__init__()
         self.pre_attention_layernorm = nn.LayerNorm(d_model)
-        self.multi_head_attention = MultiHeadAttention(d_model, num_heads, dropout)
+        self.multi_head_attention = MultiHeadAttention(d_model, num_heads)
         
         self.pre_ffn_layernorm = nn.LayerNorm(d_model)
         self.ffn = nn.Sequential(
             nn.Linear(d_model, 4 * d_model),
             nn.ReLU(),                                 
-            nn.Linear(4 * d_model, d_model)
+            nn.Linear(4 * d_model, d_model),
+            nn.Dropout(0.1)
         )
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
@@ -93,7 +92,7 @@ class TinyArithmeticTransformer(nn.Module):
         self.num_heads = num_heads
         
         self.token_embedding_layer = nn.Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
-        self.positional_encoding = PositionalEncoding(d_model, max_seq_len, dropout)
+        self.positional_encoding = PositionalEncoding(d_model, max_seq_len)
         
         self.layers = nn.ModuleList([
             TransformerBlock(d_model, num_heads, dropout) for _ in range(num_layers)
