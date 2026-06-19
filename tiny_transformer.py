@@ -55,7 +55,7 @@ class PositionalEncoding(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
+    def __init__(self, d_model: int, num_heads: int):
         super().__init__()
         self.pre_attention_layernorm = nn.LayerNorm(d_model)
         self.multi_head_attention = MultiHeadAttention(d_model, num_heads)
@@ -63,9 +63,8 @@ class TransformerBlock(nn.Module):
         self.pre_ffn_layernorm = nn.LayerNorm(d_model)
         self.ffn = nn.Sequential(
             nn.Linear(d_model, 4 * d_model),
-            nn.ReLU(),                                 
-            nn.Linear(4 * d_model, d_model),
-            nn.Dropout(0.1)
+            nn.GELU(),                                 
+            nn.Linear(4 * d_model, d_model)
         )
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
@@ -84,7 +83,7 @@ class TransformerBlock(nn.Module):
 
 class TinyArithmeticTransformer(nn.Module):
     def __init__(self, vocab_size: int, d_model: int = 64, max_seq_len: int = 100, 
-                 num_heads: int = 4, num_layers: int = 6, dropout: float = 0.1):
+                 num_heads: int = 4, num_layers: int = 6):
         super().__init__()
         
         self.d_model = d_model
@@ -95,7 +94,7 @@ class TinyArithmeticTransformer(nn.Module):
         self.positional_encoding = PositionalEncoding(d_model, max_seq_len)
         
         self.layers = nn.ModuleList([
-            TransformerBlock(d_model, num_heads, dropout) for _ in range(num_layers)
+            TransformerBlock(d_model, num_heads) for _ in range(num_layers)
         ])
         
         self.final_layernorm = nn.LayerNorm(d_model)
