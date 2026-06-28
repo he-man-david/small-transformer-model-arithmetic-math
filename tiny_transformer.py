@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 
+# Wrote from scratch for learning. Deliberately not include dropout cuz I want everything in expression to be visible to model
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model: int, num_heads: int):
         super().__init__()
@@ -33,6 +34,7 @@ class MultiHeadAttention(nn.Module):
         return self.out_linear(concat_out)
 
 
+# In hindsight, maybe the OG PE wasn't good enough for encoding arithmetic positionings
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_seq_len: int):
         super().__init__()
@@ -100,6 +102,7 @@ class TinyArithmeticTransformer(nn.Module):
         self.final_layernorm = nn.LayerNorm(d_model)
         self.output_linear = nn.Linear(d_model, vocab_size)
 
+    # prefix mask here just causal masking the result after the "="
     def compute_prefix_lm_mask(self, input_ids: torch.Tensor, eq_token_id: int) -> torch.Tensor:
         batch_size, seq_len = input_ids.shape
         causal_mask = torch.tril(torch.ones((seq_len, seq_len), device=input_ids.device))
