@@ -47,7 +47,7 @@ Our input is "10 + 5 * 3" and out put is "25". We have some known operators * / 
 
 ## Building a tiny transformer from scratch
 
-This model will be a decoder only transformer that leverage "prefix language modeling" by allowing full attention over the input arithmetic expression and then causally generating the numerical result.
+This model will be a decoder only transformer that leverage "prefix language modeling" by allowing full attention over the input arithmetic expression and then autoregressively generating the numerical result.
 
 Since this project is for learning puposes also, I am building every part of transformer from scratch.
 
