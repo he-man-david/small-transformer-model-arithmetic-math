@@ -135,6 +135,17 @@ Model Output: -2.88
 
 Deep dive = At beginning, a model's weights are initialized using isotropic distribution. This means that the model's weights W is roughly full rank and it's singular values are uniform. Deep learning manifold hypothesis states that the input data X exist in a low dimensional continuous subspace called a manifold in a massive, high-dimensional ambient space $\mathbb{R}^n$. Here n is (N * d_model) of our model. So the goal here is to train our model, which begins with a representation that is full rank, to learn a representation that is low rank that closely approximates this manifold of input X. This means that during training, the model goes through gradual rank collapse. If my training data contains what the model perceives to be a "shortcut" or aka a highly reliable pattern that leads to lower CE loss. This can cause violent rank collapse.
 
+The fix = 10 epoch warmup using learning rate scheduler
+```
+def warmup_lambda(current_epoch):
+    if current_epoch < warmup_epochs:
+        return float(current_epoch) / float(max(1, warmup_epochs))
+    return 1.0
+
+scheduler = LambdaLR(optimizer, lr_lambda=warmup_lambda)
+```
+
+
 4. Training a tranformer to learn + and - was quite straight forward, and did not require the 50k-300k sample size I used. I had a functional model for + and - at just:
 - d_model = 512
 - N = 256
