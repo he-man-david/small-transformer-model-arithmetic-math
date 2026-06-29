@@ -105,7 +105,7 @@ The way I set up my curriculum is as below:
 
 1. Learning is fragile.... model overfitting or getting stuck (loss plateau) can happen easily at the beginning, when you're training from scratch, regardless of the model size, dataset size, learning rate, batch size...etc. I guess this is why pretraining phase is so important, and takes such a long time.
 
-2. Just tossing a big dataset at a model and tell it to golearn does not work. This is obvious, but it was also interesting to see:
+2. Just tossing a big dataset at a model and tell it to go learn does not work. This is obvious, but it was also interesting to see:
 
 When using a complex dataset of + - * / that is long sequence, and mixed of int and float... even with 1mm samples dataset, and model config:
 - batch_size = 512
