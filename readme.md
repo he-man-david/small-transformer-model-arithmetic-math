@@ -144,7 +144,7 @@ def warmup_lambda(current_epoch):
 
 scheduler = LambdaLR(optimizer, lr_lambda=warmup_lambda)
 ```
-
+<img width="2010" height="991" alt="Screenshot 2026-06-27 at 11 05 55 PM" src="https://github.com/user-attachments/assets/ff12a3ae-8683-4a12-8a2d-677c3a4736c9" />
 
 4. Training a tranformer to learn + and - was quite straight forward, and did not require the 50k-300k sample size I used. I had a functional model for + and - at just:
 - d_model = 512
