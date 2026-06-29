@@ -140,6 +140,7 @@ Deep dive = At beginning, a model's weights are initialized using isotropic dist
 - N = 256
 - num_heads = 4
 - layers = 2
+
 with just 6.3mm params, and < 100k in total samples across all 6 curriculum datasets. The model was able to learn the rules of addition/subtraction and generalize to longer sequences as referenced in https://arxiv.org/pdf/2410.15787
 
 5. Training a transformer to learn * was exceptionally hard... I tried every trick in the book. My conclusion was that, without specially engineering the model architecture for learning * or using chain of thoughts style learning, it is not possible for a model (regardless of size) to learn from input data alone. I could be wrong, maybe I just suck and can't figure it out... Conclusion = well curated curriculum learning is not enough for model to learn * using vanilla transformer model.
